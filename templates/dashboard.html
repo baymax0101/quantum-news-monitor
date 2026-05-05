@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}仪表盘 - 量子通信信息监测平台{% endblock %}
+
+{% block content %}
+<!-- Stats Row -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-number">{{ counts.total }}</div>
+        <div class="stat-label">总信息量</div>
+    </div>
+    <div class="stat-card dim-policy">
+        <div class="stat-number">{{ counts.policy }}</div>
+        <div class="stat-label">📋 政策动态</div>
+    </div>
+    <div class="stat-card dim-industry">
+        <div class="stat-number">{{ counts.industry }}</div>
+        <div class="stat-label">🏭 产业进展</div>
+    </div>
+    <div class="stat-card dim-research">
+        <div class="stat-number">{{ counts.research }}</div>
+        <div class="stat-label">🔬 科研成果</div>
+    </div>
+</div>
+
+<!-- Crawl Trigger -->
+<div class="card" style="display:flex;align-items:center;justify-content:space-between;">
+    <div>
+        <span style="font-weight:600;">爬取控制</span>
+        <span style="color:var(--text-secondary);margin-left:12px;font-size:14px;" id="last-crawl-info">
+            上次爬取：{{ last_crawl }}
+        </span>
+    </div>
+    <button class="btn btn-primary" id="btn-crawl" onclick="triggerCrawl()">立即爬取</button>
+</div>
+
+<!-- Report Generator -->
+<div class="card">
+    <div class="card-title">📄 生成报告</div>
+    <div class="form-row">
+        <div class="form-group" style="flex:1;">
+            <label class="form-label">开始日期</label>
+            <input type="date" class="form-input" id="report-start">
+        </div>
+        <div class="form-group" style="flex:1;">
+            <label class="form-label">结束日期</label>
+            <input type="date" class="form-input" id="report-end">
+        </div>
+        <div class="form-group">
+            <button class="btn btn-primary" onclick="generateReport()">生成报告</button>
+            <button class="btn btn-secondary" onclick="listReports()" style="margin-left:8px;">预览最近报告</button>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Logs -->
+<div class="card">
+    <div class="card-title">📝 最近爬取日志</div>
+    {% if logs %}
+    <ul class="log-list">
+    {% for log in logs %}
+    <li class="log-item">
+        <span class="log-time">{{ log.start_time[:16] }}</span>
+        <span class="log-status {{ log.status }}">{{ log.status }}</span>
+        <span>新增 {{ log.new_articles }} 条 · 成功 {{ log.success_count }}/{{ log.total_sources }} 源</span>
+    </li>
+    {% endfor %}
+    </ul>
+    {% else %}
+    <p style="color:var(--text-secondary);">暂无爬取记录</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}
