@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}设置 - 量子通信信息监测平台{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title">⚙️ 爬取设置</div>
+
+    <div class="form-group">
+        <label class="form-label">自动爬取</label>
+        <label class="toggle" style="vertical-align:middle;">
+            <input type="checkbox" id="auto-crawl" {% if config.auto_crawl_enabled == 'true' %}checked{% endif %} onchange="saveSettings()">
+            <span class="toggle-slider"></span>
+        </label>
+        <span style="margin-left:8px;color:var(--text-secondary);font-size:14px;" id="auto-status">
+            {{ '已启用' if config.auto_crawl_enabled == 'true' else '已暂停' }}
+        </span>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">爬取频率</label>
+        <select class="form-select" id="crawl-frequency" onchange="onFrequencyChange(); saveSettings();" style="max-width:200px;">
+            <option value="daily" {% if config.crawl_frequency == 'daily' %}selected{% endif %}>每天一次</option>
+            <option value="6h" {% if config.crawl_frequency == '6h' %}selected{% endif %}>每 6 小时</option>
+            <option value="12h" {% if config.crawl_frequency == '12h' %}selected{% endif %}>每 12 小时</option>
+            <option value="manual" {% if config.crawl_frequency == 'manual' %}selected{% endif %}>手动触发</option>
+        </select>
+    </div>
+
+    <div class="form-group" id="hour-group" style="{% if config.crawl_frequency != 'daily' %}display:none;{% endif %}">
+        <label class="form-label">每天执行时间</label>
+        <select class="form-select" id="crawl-hour" onchange="saveSettings()" style="max-width:200px;">
+            {% for h in range(24) %}
+            <option value="{{ h }}" {% if config.crawl_hour == h|string %}selected{% endif %}>{{ "%02d"|format(h) }}:00</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function onFrequencyChange() {
+    const freq = document.getElementById('crawl-frequency').value;
+    document.getElementById('hour-group').style.display = (freq === 'daily') ? '' : 'none';
+}
+
+async function saveSettings() {
+    const autoCrawl = document.getElementById('auto-crawl').checked;
+    const frequency = document.getElementById('crawl-frequency').value;
+    const hour = parseInt(document.getElementById('crawl-hour').value);
+
+    // 更新界面文字
+    document.getElementById('auto-status').textContent = autoCrawl ? '已启用' : '已暂停';
+
+    try {
+        await fetch('/api/schedule', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                auto_crawl_enabled: autoCrawl,
+                frequency: frequency,
+                hour: hour
+            })
+        });
+        showToast('设置已保存', 'success');
+    } catch (e) {
+        showToast('保存失败: ' + e.message, 'error');
+    }
+}
+
+// Toast (复用)
+function showToast(msg, type) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.className = 'toast ' + (type || 'info');
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
+</script>
+{% endblock %}
