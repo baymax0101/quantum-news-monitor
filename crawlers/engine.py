@@ -1,0 +1,139 @@
+"""爬虫引擎：加载信息源、调度抓取、解析入库。"""
+
+import json
+import time
+import logging
+import os
+from datetime import datetime, timezone
+from typing import Optional
+
+from crawlers.fetcher import fetch
+from crawlers.parsers.base import extract_links
+from crawlers.parsers.rss_parsers import parse_rss
+
+logger = logging.getLogger("crawler.engine")
+
+SOURCES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sources.json")
+
+
+def load_sources() -> list[dict]:
+    """加载信息源配置，返回启用的源列表。"""
+    with open(SOURCES_PATH, "r", encoding="utf-8") as f:
+        sources = json.load(f)
+    return [s for s in sources if s.get("enabled", True)]
+
+
+def crawl_source(source: dict) -> list[dict]:
+    """
+    爬取单个信息源并解析。
+
+    Args:
+        source: 信息源配置字典
+
+    Returns:
+        解析后的文章列表
+    """
+    results = []
+    name = source["name"]
+    url = source.get("rss_url", source["url"])
+    dimension = source["dimension"]
+    keywords = source.get("keywords")
+    encoding = source.get("encoding")
+    parser_type = source.get("parser", "html_generic")
+
+    if parser_type == "rss":
+        # RSS 源：直接传入 url（feedparser 可处理 URL 或 XML 字符串）
+        try:
+            results = parse_rss(url, name, source["url"], dimension)
+        except Exception as e:
+            logger.error(f"RSS parse error for {name}: {e}")
+            return []
+    else:
+        # HTML 源：fetch 后 extract_links
+        html = fetch(url, encoding=encoding)
+        if html is None:
+            logger.warning(f"Failed to fetch HTML for {name}")
+            return []
+
+        try:
+            links = extract_links(html, url, keywords=keywords)
+        except Exception as e:
+            logger.error(f"Link extraction error for {name}: {e}")
+            return []
+
+        for link in links:
+            results.append({
+                "title": link["title"],
+                "url": link["url"],
+                "summary": link.get("summary", ""),
+                "source_name": name,
+                "source_url": source["url"],
+                "dimension": dimension,
+                "publish_time": "",  # 通用解析器无法可靠提取时间
+            })
+
+    return results
+
+
+def crawl_all(progress_callback=None) -> dict:
+    """
+    全量爬取所有启用的信息源。
+
+    Args:
+        progress_callback: 可选回调，签名为 (current: int, total: int, source_name: str)
+
+    Returns:
+        {"success": N, "failed": N, "new_articles": N, "total_sources": N}
+    """
+    from models import insert_article, start_crawl_log, finish_crawl_log, set_config
+
+    sources = load_sources()
+    total = len(sources)
+    logger.info(f"Starting crawl: {total} sources")
+
+    log_id = start_crawl_log(total)
+    success_count = 0
+    new_articles = 0
+
+    for i, source in enumerate(sources):
+        name = source["name"]
+        if progress_callback:
+            progress_callback(i + 1, total, name)
+
+        try:
+            articles = crawl_source(source)
+
+            if articles:
+                inserted = 0
+                for article in articles:
+                    if insert_article(article):
+                        inserted += 1
+                new_articles += inserted
+                logger.info(f"  {name}: {len(articles)} found, {inserted} new")
+            else:
+                logger.info(f"  {name}: 0 articles")
+
+            success_count += 1
+
+        except Exception as e:
+            logger.error(f"  {name}: ERROR - {e}")
+
+        # 间隔避免被封
+        if i < total - 1:
+            time.sleep(2)
+
+    # 更新状态
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    set_config("last_crawl_time", now)
+
+    status = "completed" if success_count > 0 else "failed"
+    finish_crawl_log(log_id, success_count, new_articles, status)
+
+    logger.info(f"Crawl complete: {success_count}/{total} sources OK, {new_articles} new articles")
+
+    return {
+        "success": success_count,
+        "failed": total - success_count,
+        "new_articles": new_articles,
+        "total_sources": total,
+    }
