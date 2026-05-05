@@ -78,7 +78,7 @@ def insert_article(article: dict) -> bool:
     conn = get_connection()
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
     try:
-        conn.execute(
+        cur = conn.execute(
             """INSERT OR IGNORE INTO articles
                (title, summary, url, source_name, source_url, dimension, publish_time, crawl_time)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -93,7 +93,7 @@ def insert_article(article: dict) -> bool:
                 now,
             ),
         )
-        inserted = conn.total_changes > 0
+        inserted = cur.rowcount > 0
         conn.commit()
         return inserted
     finally:
