@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>量子通信信息监测报告 {{ start_date }} ~ {{ end_date }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .report-header { text-align: center; padding: 40px 0 20px; }
+        .report-header h1 { font-size: 28px; margin-bottom: 8px; }
+        .report-header .meta { color: var(--text-secondary); font-size: 15px; }
+        .chart-container { width: 100%; height: 350px; margin-bottom: 24px; }
+        .article-card {
+            padding: 14px 0; border-bottom: 1px solid var(--border);
+        }
+        .article-card:last-child { border-bottom: none; }
+        .article-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+        .article-title a { color: var(--text); text-decoration: none; }
+        .article-title a:hover { color: var(--primary); }
+        .article-meta { font-size: 14px; color: var(--text-secondary); }
+        .article-summary { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        .dim-section { margin-bottom: 32px; }
+        .dim-section h2 { font-size: 22px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 3px solid; }
+        .dim-section.policy h2 { color: #dc2626; border-color: #dc2626; }
+        .dim-section.industry h2 { color: #2563eb; border-color: #2563eb; }
+        .dim-section.research h2 { color: #16a34a; border-color: #16a34a; }
+        .no-data { text-align: center; color: var(--text-secondary); padding: 40px; }
+        .appendix { margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border); }
+        .appendix h3 { font-size: 16px; color: var(--text-secondary); }
+        .appendix ul { list-style: none; padding: 0; }
+        .appendix li { display: inline-block; margin: 4px 12px; font-size: 14px; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <!-- Header -->
+        <div class="report-header">
+            <h1>量子通信信息监测报告</h1>
+            <p class="meta">{{ start_date }} 至 {{ end_date }} &nbsp;|&nbsp; 生成时间：{{ generated_at }}</p>
+        </div>
+
+        <!-- Overview -->
+        <div class="card">
+            <div class="card-title">📊 概览</div>
+            <div class="stats-row" style="margin-bottom:24px;">
+                <div class="stat-card"><div class="stat-number">{{ total }}</div><div class="stat-label">信息总量</div></div>
+                <div class="stat-card dim-policy"><div class="stat-number">{{ policy_count }}</div><div class="stat-label">政策动态</div></div>
+                <div class="stat-card dim-industry"><div class="stat-number">{{ industry_count }}</div><div class="stat-label">产业进展</div></div>
+                <div class="stat-card dim-research"><div class="stat-number">{{ research_count }}</div><div class="stat-label">科研成果</div></div>
+            </div>
+
+            {% if total > 0 %}
+            <!-- Line Chart: Daily Counts -->
+            <div class="chart-container" id="line-chart"></div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                <!-- Pie Chart: Dimension Distribution -->
+                <div class="chart-container" id="pie-chart"></div>
+                <!-- Bar Chart: Top Sources -->
+                <div class="chart-container" id="bar-chart"></div>
+            </div>
+            {% else %}
+            <div class="no-data">该时间段暂无数据</div>
+            {% endif %}
+        </div>
+
+        {% if total > 0 %}
+        <!-- Policy Section -->
+        <div class="card dim-section policy">
+            <h2>🔴 一、政策动态 ({{ policy_count }})</h2>
+            {% if policy_articles %}
+                {% for a in policy_articles %}
+                <div class="article-card">
+                    <div class="article-title">
+                        <a href="{{ a.url }}" target="_blank">{{ a.title }}</a>
+                    </div>
+                    {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
+                    <div class="article-meta">
+                        来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-data">该维度下暂无数据</div>
+            {% endif %}
+        </div>
+
+        <!-- Industry Section -->
+        <div class="card dim-section industry">
+            <h2>🔵 二、产业进展 ({{ industry_count }})</h2>
+            {% if industry_articles %}
+                {% for a in industry_articles %}
+                <div class="article-card">
+                    <div class="article-title">
+                        <a href="{{ a.url }}" target="_blank">{{ a.title }}</a>
+                    </div>
+                    {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
+                    <div class="article-meta">
+                        来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-data">该维度下暂无数据</div>
+            {% endif %}
+        </div>
+
+        <!-- Research Section -->
+        <div class="card dim-section research">
+            <h2>🟢 三、科研成果 ({{ research_count }})</h2>
+            {% if research_articles %}
+                {% for a in research_articles %}
+                <div class="article-card">
+                    <div class="article-title">
+                        <a href="{{ a.url }}" target="_blank">{{ a.title }}</a>
+                    </div>
+                    {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
+                    <div class="article-meta">
+                        来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="no-data">该维度下暂无数据</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Appendix -->
+        <div class="appendix">
+            <h3>📎 本报告涉及信息源</h3>
+            <ul>
+                {% for s in sources %}
+                <li>{{ s }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    {% if total > 0 %}
+    <script>
+    // Line Chart
+    (function(){
+        var chart = echarts.init(document.getElementById('line-chart'));
+        chart.setOption({
+            title: { text: '每日信息量趋势', left: 'center', textStyle: { fontSize: 16 } },
+            tooltip: { trigger: 'axis' },
+            legend: { bottom: 0, data: ['政策动态', '产业进展', '科研成果'] },
+            grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+            xAxis: { type: 'category', data: {{ line_dates|safe }} },
+            yAxis: { type: 'value', minInterval: 1 },
+            series: [
+                { name: '政策动态', type: 'line', data: {{ line_policy|safe }}, color: '#dc2626', smooth: true },
+                { name: '产业进展', type: 'line', data: {{ line_industry|safe }}, color: '#2563eb', smooth: true },
+                { name: '科研成果', type: 'line', data: {{ line_research|safe }}, color: '#16a34a', smooth: true }
+            ]
+        });
+    })();
+
+    // Pie Chart
+    (function(){
+        var chart = echarts.init(document.getElementById('pie-chart'));
+        chart.setOption({
+            title: { text: '维度分布', left: 'center', textStyle: { fontSize: 16 } },
+            tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+            series: [{
+                type: 'pie', radius: ['40%', '70%'],
+                data: {{ pie_data|safe }},
+                label: { formatter: '{b}\n{d}%' },
+                itemStyle: {
+                    color: function(params) {
+                        var colors = {'政策动态':'#dc2626','产业进展':'#2563eb','科研成果':'#16a34a'};
+                        return colors[params.name] || '#999';
+                    }
+                }
+            }]
+        });
+    })();
+
+    // Bar Chart
+    (function(){
+        var chart = echarts.init(document.getElementById('bar-chart'));
+        chart.setOption({
+            title: { text: '信息来源 Top10', left: 'center', textStyle: { fontSize: 16 } },
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+            grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+            xAxis: { type: 'value', minInterval: 1 },
+            yAxis: { type: 'category', data: {{ bar_sources|safe }}, axisLabel: { fontSize: 12 } },
+            series: [{ type: 'bar', data: {{ bar_counts|safe }}, color: '#2563eb' }]
+        });
+    })();
+    </script>
+    {% endif %}
+</body>
+</html>
