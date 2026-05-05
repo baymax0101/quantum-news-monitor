@@ -133,9 +133,11 @@ def create_app() -> Flask:
 # --- 启动入口 ---
 
 if __name__ == "__main__":
+    import os
     app = create_app()
+    debug = os.environ.get("FLASK_ENV") == "development"
     print("\n" + "=" * 50)
     print("  量子通信信息监测平台")
     print("  访问地址: http://127.0.0.1:5000")
     print("=" * 50 + "\n")
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=debug)

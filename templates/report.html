@@ -73,7 +73,7 @@
                 {% for a in policy_articles %}
                 <div class="article-card">
                     <div class="article-title">
-                        <a href="{{ a.url }}" target="_blank">{{ a.title }}</a>
+                        <a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a>
                     </div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
                     <div class="article-meta">
@@ -93,7 +93,7 @@
                 {% for a in industry_articles %}
                 <div class="article-card">
                     <div class="article-title">
-                        <a href="{{ a.url }}" target="_blank">{{ a.title }}</a>
+                        <a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a>
                     </div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
                     <div class="article-meta">
@@ -113,7 +113,7 @@
                 {% for a in research_articles %}
                 <div class="article-card">
                     <div class="article-title">
-                        <a href="{{ a.url }}" target="_blank">{{ a.title }}</a>
+                        <a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a>
                     </div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
                     <div class="article-meta">

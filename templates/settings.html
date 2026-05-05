@@ -38,6 +38,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
 function onFrequencyChange() {
     const freq = document.getElementById('crawl-frequency').value;
@@ -49,7 +50,6 @@ async function saveSettings() {
     const frequency = document.getElementById('crawl-frequency').value;
     const hour = parseInt(document.getElementById('crawl-hour').value);
 
-    // 更新界面文字
     document.getElementById('auto-status').textContent = autoCrawl ? '已启用' : '已暂停';
 
     try {
@@ -66,16 +66,6 @@ async function saveSettings() {
     } catch (e) {
         showToast('保存失败: ' + e.message, 'error');
     }
-}
-
-// Toast (复用)
-function showToast(msg, type) {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.className = 'toast ' + (type || 'info');
-    toast.style.display = 'block';
-    setTimeout(() => { toast.style.display = 'none'; }, 3000);
 }
 </script>
 {% endblock %}
