@@ -10,6 +10,7 @@ dependencies = [
     "apscheduler>=3.10",
     "feedparser>=6.0",
     "lxml>=5.0",
+    "weasyprint>=62.0",
 ]
 
 [project.optional-dependencies]

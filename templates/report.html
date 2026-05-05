@@ -30,6 +30,20 @@
         .appendix h3 { font-size: 16px; color: var(--text-secondary); }
         .appendix ul { list-style: none; padding: 0; }
         .appendix li { display: inline-block; margin: 4px 12px; font-size: 14px; color: var(--text-secondary); }
+        .btn-export {
+            display: inline-block; padding: 10px 24px; border-radius: 8px;
+            font-size: 15px; font-weight: 500; border: none; cursor: pointer;
+            background: #2563eb; color: #fff; margin-top: 12px;
+            transition: background 0.2s;
+        }
+        .btn-export:hover { background: #1d4ed8; }
+        .btn-pdf {
+            background: #dc2626; margin-left: 10px;
+        }
+        .btn-pdf:hover { background: #b91c1c; }
+        @media print {
+            .btn-export, .btn-pdf { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -38,6 +52,8 @@
         <div class="report-header">
             <h1>量子通信信息监测报告</h1>
             <p class="meta">{{ start_date }} 至 {{ end_date }} &nbsp;|&nbsp; 生成时间：{{ generated_at }}</p>
+            <button class="btn-export" onclick="window.print()">🖨️ 打印 / 导出 PDF</button>
+            <button class="btn-export btn-pdf" onclick="downloadPDF()">📥 下载 PDF</button>
         </div>
 
         <!-- Overview -->
@@ -190,6 +206,40 @@
             series: [{ type: 'bar', data: {{ bar_counts|safe }}, color: '#2563eb' }]
         });
     })();
+    </script>
+    <script>
+    // PDF download via server-side generation
+    async function downloadPDF() {
+        try {
+            const resp = await fetch('/api/report/pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    start_date: '{{ start_date }}',
+                    end_date: '{{ end_date }}'
+                })
+            });
+            if (!resp.ok) {
+                const err = await resp.json();
+                alert('PDF 生成失败: ' + (err.error || '未知错误'));
+                return;
+            }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            // 根据实际 MIME 类型决定文件扩展名
+            const ct = resp.headers.get('Content-Type') || '';
+            const ext = ct.includes('pdf') ? 'pdf' : 'html';
+            a.download = `量子通信监测报告_{{ start_date }}_{{ end_date }}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert('下载失败: ' + e.message + '\n\n请使用"打印/导出 PDF"按钮通过浏览器打印为 PDF');
+        }
+    }
     </script>
     {% endif %}
 </body>

@@ -9,7 +9,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from models import init_db, get_article_counts, get_recent_crawl_logs, get_all_config, set_config
 from crawlers.engine import crawl_all
 from scheduler import init_scheduler
-from reporter import generate_report, list_reports
+from reporter import generate_report, generate_report_pdf, list_reports
 
 # --- 应用工厂 ---
 
@@ -121,6 +121,32 @@ def create_app() -> Flask:
     @app.route("/api/report/list")
     def api_list_reports():
         return jsonify({"reports": list_reports()})
+
+    @app.route("/api/report/pdf", methods=["POST"])
+    def api_report_pdf():
+        data = request.get_json()
+        start_date = data.get("start_date", "")
+        end_date = data.get("end_date", "")
+        if not start_date or not end_date:
+            return jsonify({"error": "请提供开始和结束日期"}), 400
+        try:
+            from flask import Response
+            result_type, result_bytes = generate_report_pdf(start_date, end_date)
+            if result_type == "pdf":
+                filename = f"量子通信监测报告_{start_date}_{end_date}.pdf"
+                mimetype = "application/pdf"
+            else:
+                filename = f"量子通信监测报告_{start_date}_{end_date}.html"
+                mimetype = "text/html"
+            return Response(
+                result_bytes,
+                mimetype=mimetype,
+                headers={
+                    "Content-Disposition": f"attachment; filename={filename}",
+                },
+            )
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     @app.route("/api/stats")
     def api_stats():

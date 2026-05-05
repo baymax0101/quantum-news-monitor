@@ -1,7 +1,8 @@
-"""报告生成：数据聚合 + Jinja2 渲染 + ECharts 配置注入。"""
+"""报告生成：数据聚合 + Jinja2 渲染 + ECharts 配置注入 + PDF 导出。"""
 
 import os
 import json
+import io
 from datetime import datetime
 from collections import defaultdict, Counter
 from flask import render_template
@@ -117,6 +118,73 @@ def generate_report(start_date: str, end_date: str) -> str:
         f.write(html)
 
     return filename
+
+
+def generate_report_pdf(start_date: str, end_date: str) -> bytes:
+    """
+    生成 PDF 报告并返回字节流。
+
+    Args:
+        start_date: 开始日期 (YYYY-MM-DD)
+        end_date: 结束日期 (YYYY-MM-DD)
+
+    Returns:
+        PDF 文件字节流
+    """
+    _ensure_reports_dir()
+
+    articles = get_articles_by_date_range(start_date, end_date)
+
+    policy_articles = [a for a in articles if a["dimension"] == "policy"]
+    industry_articles = [a for a in articles if a["dimension"] == "industry"]
+    research_articles = [a for a in articles if a["dimension"] == "research"]
+
+    chart_data = _build_chart_data(articles, start_date, end_date)
+
+    sources_set = set()
+    for a in articles:
+        if a.get("source_name"):
+            sources_set.add(a["source_name"])
+
+    html = render_template(
+        "report.html",
+        start_date=start_date,
+        end_date=end_date,
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
+        total=len(articles),
+        policy_count=len(policy_articles),
+        industry_count=len(industry_articles),
+        research_count=len(research_articles),
+        policy_articles=policy_articles,
+        industry_articles=industry_articles,
+        research_articles=research_articles,
+        sources=sorted(sources_set),
+        **chart_data,
+    )
+
+    # 同时保存 HTML 副本
+    filename = f"{start_date}_{end_date}.html"
+    filepath = os.path.join(REPORTS_DIR, filename)
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write(html)
+
+    # 使用 WeasyPrint 生成 PDF
+    try:
+        from weasyprint import HTML
+        pdf_bytes = HTML(string=html).write_pdf()
+
+        # 保存 PDF 副本
+        pdf_filename = f"{start_date}_{end_date}.pdf"
+        pdf_filepath = os.path.join(REPORTS_DIR, pdf_filename)
+        with open(pdf_filepath, "wb") as f:
+            f.write(pdf_bytes)
+
+        return ("pdf", pdf_bytes)
+    except Exception as e:
+        # Windows 缺少 GTK 库时回退到 HTML
+        import logging
+        logging.getLogger("reporter").warning(f"WeasyPrint failed ({e}), falling back to HTML")
+        return ("html", html.encode("utf-8"))
 
 
 def list_reports() -> list[dict]:
