@@ -1,0 +1,19 @@
+[project]
+name = "quantum-news-monitor"
+version = "0.1.0"
+description = "量子通信信息监测平台 - 定时爬取、分类存储、报告生成"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.0",
+    "requests>=2.31",
+    "beautifulsoup4>=4.12",
+    "apscheduler>=3.10",
+    "feedparser>=6.0",
+    "lxml>=5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
