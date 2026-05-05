@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}爬取管理 - 量子通信信息监测平台{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📡 信息源管理</span>
+        <div style="display:flex;gap:8px;">
+            <select class="form-select" id="filter-dimension" onchange="filterSources()" style="width:auto;">
+                <option value="all">全部维度</option>
+                <option value="policy">政策动态</option>
+                <option value="industry">产业进展</option>
+                <option value="research">科研成果</option>
+            </select>
+            <select class="form-select" id="filter-status" onchange="filterSources()" style="width:auto;">
+                <option value="all">全部状态</option>
+                <option value="enabled">已启用</option>
+                <option value="disabled">已禁用</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>信息源</th>
+                    <th>维度</th>
+                    <th>URL</th>
+                    <th>解析类型</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody id="sources-tbody">
+                {% for src in sources %}
+                <tr data-dimension="{{ src.dimension }}" data-enabled="{{ src.enabled|lower }}">
+                    <td><strong>{{ src.name }}</strong></td>
+                    <td>
+                        {% if src.dimension == 'policy' %}
+                        <span class="tag tag-policy">政策</span>
+                        {% elif src.dimension == 'industry' %}
+                        <span class="tag tag-industry">产业</span>
+                        {% else %}
+                        <span class="tag tag-research">科研</span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        <a href="{{ src.url }}" target="_blank" style="color:var(--text-secondary);">{{ src.url }}</a>
+                    </td>
+                    <td style="color:var(--text-secondary);">
+                        {{ src.parser }}{% if src.rss_url %} (RSS){% endif %}
+                    </td>
+                    <td>
+                        <label class="toggle">
+                            <input type="checkbox" {% if src.enabled %}checked{% endif %} disabled>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterSources() {
+    const dim = document.getElementById('filter-dimension').value;
+    const status = document.getElementById('filter-status').value;
+    const rows = document.querySelectorAll('#sources-tbody tr');
+
+    rows.forEach(row => {
+        const rowDim = row.dataset.dimension;
+        const rowEnabled = row.dataset.enabled;
+
+        let show = true;
+        if (dim !== 'all' && rowDim !== dim) show = false;
+        if (status === 'enabled' && rowEnabled !== 'true') show = false;
+        if (status === 'disabled' && rowEnabled !== 'false') show = false;
+
+        row.style.display = show ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}
