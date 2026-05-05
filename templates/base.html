@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}量子通信信息监测平台{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-brand">🔬 量子通信信息监测平台</a>
+            <div class="nav-links">
+                <a href="/crawl" class="nav-link {% if request.path == '/crawl' %}active{% endif %}">爬取管理</a>
+                <a href="/settings" class="nav-link {% if request.path == '/settings' %}active{% endif %}">设置</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <div id="toast" class="toast" style="display:none;"></div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
