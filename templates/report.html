@@ -263,30 +263,34 @@
     })();
     </script>
     <script>
+    // PDF download — use browser print-to-PDF (works on all platforms)
     async function downloadPDF() {
+        // Try server-side PDF first (works on Linux/Mac with GTK)
         try {
             const resp = await fetch('/api/report/pdf', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ start_date: '{{ start_date }}', end_date: '{{ end_date }}' })
             });
-            if (!resp.ok) {
-                const err = await resp.json();
-                alert('PDF 生成失败: ' + (err.error || '未知错误'));
-                return;
+            if (resp.ok) {
+                const ct = resp.headers.get('Content-Type') || '';
+                if (ct.includes('pdf')) {
+                    // Server generated real PDF — download it
+                    const blob = await resp.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '量子通信监测报告_{{ start_date }}_{{ end_date }}.pdf';
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    return;
+                }
             }
-            const blob = await resp.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const ct = resp.headers.get('Content-Type') || '';
-            const ext = ct.includes('pdf') ? 'pdf' : 'html';
-            a.download = `量子通信监测报告_{{ start_date }}_{{ end_date }}.${ext}`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (e) {
-            alert('下载失败: ' + e.message + '\n\n请使用"打印/导出 PDF"按钮通过浏览器打印为 PDF');
-        }
+        } catch (e) { /* fall through to print */ }
+
+        // Fallback: use browser print-to-PDF (always works)
+        alert('服务端 PDF 暂不可用（Windows 需安装 GTK），将使用浏览器打印为 PDF。\n\n请在打印对话框中选择"另存为 PDF"。');
+        window.print();
     }
     </script>
     {% endif %}

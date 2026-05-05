@@ -131,18 +131,25 @@ def create_app() -> Flask:
             return jsonify({"error": "请提供开始和结束日期"}), 400
         try:
             from flask import Response
+            from urllib.parse import quote
             result_type, result_bytes = generate_report_pdf(start_date, end_date)
             if result_type == "pdf":
-                filename = f"量子通信监测报告_{start_date}_{end_date}.pdf"
+                filename_cn = f"量子通信监测报告_{start_date}_{end_date}.pdf"
+                filename_ascii = f"report_{start_date}_{end_date}.pdf"
                 mimetype = "application/pdf"
             else:
-                filename = f"量子通信监测报告_{start_date}_{end_date}.html"
+                filename_cn = f"量子通信监测报告_{start_date}_{end_date}.html"
+                filename_ascii = f"report_{start_date}_{end_date}.html"
                 mimetype = "text/html"
+            encoded = quote(filename_cn, safe="")
             return Response(
                 result_bytes,
                 mimetype=mimetype,
                 headers={
-                    "Content-Disposition": f"attachment; filename={filename}",
+                    "Content-Disposition": (
+                        f"attachment; filename=\"{filename_ascii}\"; "
+                        f"filename*=UTF-8''{encoded}"
+                    ),
                 },
             )
         except Exception as e:
