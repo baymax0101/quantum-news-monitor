@@ -6,19 +6,31 @@
 <div class="stats-row">
     <div class="stat-card">
         <div class="stat-number">{{ counts.total }}</div>
-        <div class="stat-label">总信息量</div>
+        <div class="stat-label">📊 总信息量</div>
     </div>
     <div class="stat-card dim-policy">
         <div class="stat-number">{{ counts.policy }}</div>
         <div class="stat-label">📋 政策动态</div>
     </div>
     <div class="stat-card dim-industry">
-        <div class="stat-number">{{ counts.industry }}</div>
-        <div class="stat-label">🏭 产业进展</div>
+        <div class="stat-number">{{ counts.industry_domestic }}</div>
+        <div class="stat-label">🏭 产业进展(国内)</div>
+    </div>
+    <div class="stat-card" style="--stat-color: #8b5cf6;">
+        <div class="stat-number" style="color: var(--stat-color, #2563eb);">{{ counts.industry_international }}</div>
+        <div class="stat-label">🏭 产业进展(国外)</div>
     </div>
     <div class="stat-card dim-research">
-        <div class="stat-number">{{ counts.research }}</div>
-        <div class="stat-label">🔬 科研成果</div>
+        <div class="stat-number">{{ counts.research_domestic }}</div>
+        <div class="stat-label">🔬 科研成果(国内)</div>
+    </div>
+    <div class="stat-card" style="--stat-color: #0891b2;">
+        <div class="stat-number" style="color: var(--stat-color, #2563eb);">{{ counts.research_international }}</div>
+        <div class="stat-label">🔬 科研成果(国外)</div>
+    </div>
+    <div class="stat-card" style="--stat-color: #f59e0b;">
+        <div class="stat-number" style="color: var(--stat-color, #2563eb);">{{ counts.hefei }}</div>
+        <div class="stat-label">🔶 合肥相关</div>
     </div>
 </div>
 

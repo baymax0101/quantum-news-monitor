@@ -10,21 +10,23 @@
         .report-header { text-align: center; padding: 40px 0 20px; }
         .report-header h1 { font-size: 28px; margin-bottom: 8px; }
         .report-header .meta { color: var(--text-secondary); font-size: 15px; }
-        .chart-container { width: 100%; height: 350px; margin-bottom: 24px; }
-        .article-card {
-            padding: 14px 0; border-bottom: 1px solid var(--border);
-        }
+        .chart-container { width: 100%; height: 380px; margin-bottom: 24px; }
+        .article-card { padding: 14px 0; border-bottom: 1px solid var(--border); }
         .article-card:last-child { border-bottom: none; }
         .article-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
         .article-title a { color: var(--text); text-decoration: none; }
         .article-title a:hover { color: var(--primary); }
         .article-meta { font-size: 14px; color: var(--text-secondary); }
         .article-summary { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+        .article-region { font-size: 12px; color: var(--text-secondary); margin-left: 8px; }
         .dim-section { margin-bottom: 32px; }
         .dim-section h2 { font-size: 22px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 3px solid; }
         .dim-section.policy h2 { color: #dc2626; border-color: #dc2626; }
-        .dim-section.industry h2 { color: #2563eb; border-color: #2563eb; }
-        .dim-section.research h2 { color: #16a34a; border-color: #16a34a; }
+        .dim-section.ind-dom h2 { color: #2563eb; border-color: #2563eb; }
+        .dim-section.ind-int h2 { color: #8b5cf6; border-color: #8b5cf6; }
+        .dim-section.res-dom h2 { color: #16a34a; border-color: #16a34a; }
+        .dim-section.res-int h2 { color: #0891b2; border-color: #0891b2; }
+        .dim-section.hefei h2 { color: #f59e0b; border-color: #f59e0b; }
         .no-data { text-align: center; color: var(--text-secondary); padding: 40px; }
         .appendix { margin-top: 40px; padding-top: 20px; border-top: 2px solid var(--border); }
         .appendix h3 { font-size: 16px; color: var(--text-secondary); }
@@ -37,13 +39,13 @@
             transition: background 0.2s;
         }
         .btn-export:hover { background: #1d4ed8; }
-        .btn-pdf {
-            background: #dc2626; margin-left: 10px;
-        }
+        .btn-pdf { background: #dc2626; margin-left: 10px; }
         .btn-pdf:hover { background: #b91c1c; }
         @media print {
             .btn-export, .btn-pdf { display: none !important; }
         }
+        .hefei-sub { padding-left: 20px; border-left: 3px solid #f59e0b; margin-bottom: 16px; }
+        .hefei-sub h3 { font-size: 16px; color: #92400e; margin-bottom: 8px; }
     </style>
 </head>
 <body>
@@ -60,20 +62,19 @@
         <div class="card">
             <div class="card-title">📊 概览</div>
             <div class="stats-row" style="margin-bottom:24px;">
-                <div class="stat-card"><div class="stat-number">{{ total }}</div><div class="stat-label">信息总量</div></div>
-                <div class="stat-card dim-policy"><div class="stat-number">{{ policy_count }}</div><div class="stat-label">政策动态</div></div>
-                <div class="stat-card dim-industry"><div class="stat-number">{{ industry_count }}</div><div class="stat-label">产业进展</div></div>
-                <div class="stat-card dim-research"><div class="stat-number">{{ research_count }}</div><div class="stat-label">科研成果</div></div>
+                <div class="stat-card"><div class="stat-number">{{ total }}</div><div class="stat-label">📊 信息总量</div></div>
+                <div class="stat-card dim-policy"><div class="stat-number">{{ policy_count }}</div><div class="stat-label">📋 政策动态</div></div>
+                <div class="stat-card dim-industry"><div class="stat-number">{{ industry_domestic_count }}</div><div class="stat-label">🏭 产业(国内)</div></div>
+                <div class="stat-card" style="--stat-color:#8b5cf6;"><div class="stat-number" style="color:var(--stat-color)">{{ industry_international_count }}</div><div class="stat-label">🏭 产业(国外)</div></div>
+                <div class="stat-card dim-research"><div class="stat-number">{{ research_domestic_count }}</div><div class="stat-label">🔬 科研(国内)</div></div>
+                <div class="stat-card" style="--stat-color:#0891b2;"><div class="stat-number" style="color:var(--stat-color)">{{ research_international_count }}</div><div class="stat-label">🔬 科研(国外)</div></div>
+                <div class="stat-card" style="--stat-color:#f59e0b;"><div class="stat-number" style="color:var(--stat-color)">{{ hefei_count }}</div><div class="stat-label">🔶 合肥相关</div></div>
             </div>
 
             {% if total > 0 %}
-            <!-- Line Chart: Daily Counts -->
             <div class="chart-container" id="line-chart"></div>
-
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-                <!-- Pie Chart: Dimension Distribution -->
                 <div class="chart-container" id="pie-chart"></div>
-                <!-- Bar Chart: Top Sources -->
                 <div class="chart-container" id="bar-chart"></div>
             </div>
             {% else %}
@@ -82,64 +83,114 @@
         </div>
 
         {% if total > 0 %}
-        <!-- Policy Section -->
+        <!-- 一、政策动态 -->
         <div class="card dim-section policy">
             <h2>🔴 一、政策动态 ({{ policy_count }})</h2>
             {% if policy_articles %}
                 {% for a in policy_articles %}
                 <div class="article-card">
-                    <div class="article-title">
-                        <a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a>
-                    </div>
+                    <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
-                    <div class="article-meta">
-                        来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}
-                    </div>
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
                 </div>
                 {% endfor %}
-            {% else %}
-                <div class="no-data">该维度下暂无数据</div>
-            {% endif %}
+            {% else %}<div class="no-data">暂无数据</div>{% endif %}
         </div>
 
-        <!-- Industry Section -->
-        <div class="card dim-section industry">
-            <h2>🔵 二、产业进展 ({{ industry_count }})</h2>
-            {% if industry_articles %}
-                {% for a in industry_articles %}
+        <!-- 二、产业进展（国内） -->
+        <div class="card dim-section ind-dom">
+            <h2>🔵 二、产业进展 · 国内 ({{ industry_domestic_count }})</h2>
+            {% if industry_domestic_articles %}
+                {% for a in industry_domestic_articles %}
                 <div class="article-card">
-                    <div class="article-title">
-                        <a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a>
-                    </div>
+                    <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
-                    <div class="article-meta">
-                        来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}
-                    </div>
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
                 </div>
                 {% endfor %}
-            {% else %}
-                <div class="no-data">该维度下暂无数据</div>
-            {% endif %}
+            {% else %}<div class="no-data">暂无数据</div>{% endif %}
         </div>
 
-        <!-- Research Section -->
-        <div class="card dim-section research">
-            <h2>🟢 三、科研成果 ({{ research_count }})</h2>
-            {% if research_articles %}
-                {% for a in research_articles %}
+        <!-- 三、产业进展（国外） -->
+        <div class="card dim-section ind-int">
+            <h2>🟣 三、产业进展 · 国外 ({{ industry_international_count }})</h2>
+            {% if industry_international_articles %}
+                {% for a in industry_international_articles %}
                 <div class="article-card">
-                    <div class="article-title">
-                        <a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a>
-                    </div>
+                    <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
-                    <div class="article-meta">
-                        来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}
-                    </div>
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
                 </div>
                 {% endfor %}
-            {% else %}
-                <div class="no-data">该维度下暂无数据</div>
-            {% endif %}
+            {% else %}<div class="no-data">暂无数据</div>{% endif %}
+        </div>
+
+        <!-- 四、科研成果（国内） -->
+        <div class="card dim-section res-dom">
+            <h2>🟢 四、科研成果 · 国内 ({{ research_domestic_count }})</h2>
+            {% if research_domestic_articles %}
+                {% for a in research_domestic_articles %}
+                <div class="article-card">
+                    <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
+                    {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                </div>
+                {% endfor %}
+            {% else %}<div class="no-data">暂无数据</div>{% endif %}
+        </div>
+
+        <!-- 五、科研成果（国外） -->
+        <div class="card dim-section res-int">
+            <h2>🔵 五、科研成果 · 国外 ({{ research_international_count }})</h2>
+            {% if research_international_articles %}
+                {% for a in research_international_articles %}
+                <div class="article-card">
+                    <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
+                    {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                </div>
+                {% endfor %}
+            {% else %}<div class="no-data">暂无数据</div>{% endif %}
+        </div>
+
+        <!-- 六、合肥相关 -->
+        <div class="card dim-section hefei">
+            <h2>🔶 六、合肥相关 ({{ hefei_count }})</h2>
+            {% if hefei_articles %}
+                {% if hefei_policy %}
+                <div class="hefei-sub">
+                    <h3>📋 政策 ({{ hefei_policy|length }})</h3>
+                    {% for a in hefei_policy %}
+                    <div class="article-card">
+                        <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
+                        <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if hefei_industry %}
+                <div class="hefei-sub">
+                    <h3>🏭 产业 ({{ hefei_industry|length }})</h3>
+                    {% for a in hefei_industry %}
+                    <div class="article-card">
+                        <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
+                        <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if hefei_research %}
+                <div class="hefei-sub">
+                    <h3>🔬 科研 ({{ hefei_research|length }})</h3>
+                    {% for a in hefei_research %}
+                    <div class="article-card">
+                        <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
+                        <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% else %}<div class="no-data">暂无数据</div>{% endif %}
         </div>
         {% endif %}
 
@@ -147,54 +198,58 @@
         <div class="appendix">
             <h3>📎 本报告涉及信息源</h3>
             <ul>
-                {% for s in sources %}
-                <li>{{ s }}</li>
-                {% endfor %}
+                {% for s in sources %}<li>{{ s }}</li>{% endfor %}
             </ul>
         </div>
     </div>
 
     {% if total > 0 %}
     <script>
-    // Line Chart
+    // Line Chart - 7 series
     (function(){
         var chart = echarts.init(document.getElementById('line-chart'));
         chart.setOption({
             title: { text: '每日信息量趋势', left: 'center', textStyle: { fontSize: 16 } },
             tooltip: { trigger: 'axis' },
-            legend: { bottom: 0, data: ['政策动态', '产业进展', '科研成果'] },
+            legend: { bottom: 0, data: ['政策动态','产业(国内)','产业(国外)','科研(国内)','科研(国外)','合肥相关'] },
             grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
             xAxis: { type: 'category', data: {{ line_dates|safe }} },
             yAxis: { type: 'value', minInterval: 1 },
             series: [
                 { name: '政策动态', type: 'line', data: {{ line_policy|safe }}, color: '#dc2626', smooth: true },
-                { name: '产业进展', type: 'line', data: {{ line_industry|safe }}, color: '#2563eb', smooth: true },
-                { name: '科研成果', type: 'line', data: {{ line_research|safe }}, color: '#16a34a', smooth: true }
+                { name: '产业(国内)', type: 'line', data: {{ line_ind_dom|safe }}, color: '#2563eb', smooth: true },
+                { name: '产业(国外)', type: 'line', data: {{ line_ind_int|safe }}, color: '#8b5cf6', smooth: true },
+                { name: '科研(国内)', type: 'line', data: {{ line_res_dom|safe }}, color: '#16a34a', smooth: true },
+                { name: '科研(国外)', type: 'line', data: {{ line_res_int|safe }}, color: '#0891b2', smooth: true },
+                { name: '合肥相关', type: 'line', data: {{ line_hefei|safe }}, color: '#f59e0b', smooth: true, lineStyle: { type: 'dashed' } }
             ]
         });
     })();
 
-    // Pie Chart
+    // Pie Chart - dynamic
     (function(){
         var chart = echarts.init(document.getElementById('pie-chart'));
+        var colorMap = {
+            '政策动态': '#dc2626',
+            '产业进展(国内)': '#2563eb', '产业进展(国外)': '#8b5cf6',
+            '科研成果(国内)': '#16a34a', '科研成果(国外)': '#0891b2',
+            '合肥相关': '#f59e0b'
+        };
         chart.setOption({
-            title: { text: '维度分布', left: 'center', textStyle: { fontSize: 16 } },
+            title: { text: '分类分布', left: 'center', textStyle: { fontSize: 16 } },
             tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
             series: [{
                 type: 'pie', radius: ['40%', '70%'],
                 data: {{ pie_data|safe }},
                 label: { formatter: '{b}\n{d}%' },
                 itemStyle: {
-                    color: function(params) {
-                        var colors = {'政策动态':'#dc2626','产业进展':'#2563eb','科研成果':'#16a34a'};
-                        return colors[params.name] || '#999';
-                    }
+                    color: function(params) { return colorMap[params.name] || '#999'; }
                 }
             }]
         });
     })();
 
-    // Bar Chart
+    // Bar Chart - Top Sources
     (function(){
         var chart = echarts.init(document.getElementById('bar-chart'));
         chart.setOption({
@@ -208,16 +263,12 @@
     })();
     </script>
     <script>
-    // PDF download via server-side generation
     async function downloadPDF() {
         try {
             const resp = await fetch('/api/report/pdf', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    start_date: '{{ start_date }}',
-                    end_date: '{{ end_date }}'
-                })
+                body: JSON.stringify({ start_date: '{{ start_date }}', end_date: '{{ end_date }}' })
             });
             if (!resp.ok) {
                 const err = await resp.json();
@@ -228,13 +279,10 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            // 根据实际 MIME 类型决定文件扩展名
             const ct = resp.headers.get('Content-Type') || '';
             const ext = ct.includes('pdf') ? 'pdf' : 'html';
             a.download = `量子通信监测报告_{{ start_date }}_{{ end_date }}.${ext}`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
             URL.revokeObjectURL(url);
         } catch (e) {
             alert('下载失败: ' + e.message + '\n\n请使用"打印/导出 PDF"按钮通过浏览器打印为 PDF');

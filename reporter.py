@@ -19,34 +19,71 @@ def _ensure_reports_dir():
 def _build_chart_data(articles: list[dict], start_date: str, end_date: str) -> dict:
     """根据文章列表构建 ECharts 所需的结构化数据。"""
 
-    # 1. 每日信息量（折线图）
     from datetime import timedelta
-    daily_counts = defaultdict(lambda: {"policy": 0, "industry": 0, "research": 0})
+
+    # 1. 每日信息量（折线图）— 按维度+区域
+    daily_counts = defaultdict(lambda: {
+        "policy": 0,
+        "industry_domestic": 0, "industry_international": 0,
+        "research_domestic": 0, "research_international": 0,
+        "hefei": 0,
+    })
 
     for a in articles:
-        pt = a.get("publish_time", "")[:10]  # 取 YYYY-MM-DD
-        if pt:
-            daily_counts[pt][a.get("dimension", "research")] += 1
+        pt = a.get("publish_time", "")[:10]
+        if not pt:
+            continue
+        dim = a.get("dimension", "")
+        reg = a.get("region", "domestic")
 
-    # 补全日期范围内的所有天
+        if reg == "hefei":
+            daily_counts[pt]["hefei"] += 1
+        elif dim == "policy":
+            daily_counts[pt]["policy"] += 1
+        elif dim == "industry":
+            key = "industry_domestic" if reg == "domestic" else "industry_international"
+            daily_counts[pt][key] += 1
+        elif dim == "research":
+            key = "research_domestic" if reg == "domestic" else "research_international"
+            daily_counts[pt][key] += 1
+
     sd = datetime.strptime(start_date, "%Y-%m-%d")
     ed = datetime.strptime(end_date, "%Y-%m-%d")
     all_dates = []
     policy_series = []
-    industry_series = []
-    research_series = []
+    ind_dom_series = []
+    ind_int_series = []
+    res_dom_series = []
+    res_int_series = []
+    hefei_series = []
 
     d = sd
     while d <= ed:
         ds = d.strftime("%Y-%m-%d")
         all_dates.append(ds)
         policy_series.append(daily_counts[ds]["policy"])
-        industry_series.append(daily_counts[ds]["industry"])
-        research_series.append(daily_counts[ds]["research"])
+        ind_dom_series.append(daily_counts[ds]["industry_domestic"])
+        ind_int_series.append(daily_counts[ds]["industry_international"])
+        res_dom_series.append(daily_counts[ds]["research_domestic"])
+        res_int_series.append(daily_counts[ds]["research_international"])
+        hefei_series.append(daily_counts[ds]["hefei"])
         d += timedelta(days=1)
 
-    # 2. 维度分布（环形图）
-    dim_counts = Counter(a.get("dimension") for a in articles)
+    # 2. 维度分布（环形图）— 7 个分类
+    cat_counts = Counter()
+    for a in articles:
+        dim = a.get("dimension", "")
+        reg = a.get("region", "domestic")
+        if reg == "hefei":
+            cat_counts["合肥相关"] += 1
+        elif dim == "policy":
+            cat_counts["政策动态"] += 1
+        elif dim == "industry":
+            label = "产业进展(国内)" if reg == "domestic" else "产业进展(国外)"
+            cat_counts[label] += 1
+        elif dim == "research":
+            label = "科研成果(国内)" if reg == "domestic" else "科研成果(国外)"
+            cat_counts[label] += 1
 
     # 3. 来源 Top10（横向柱状图）
     source_counts = Counter(a.get("source_name") for a in articles)
@@ -55,133 +92,112 @@ def _build_chart_data(articles: list[dict], start_date: str, end_date: str) -> d
     return {
         "line_dates": json.dumps(all_dates, ensure_ascii=False),
         "line_policy": json.dumps(policy_series),
-        "line_industry": json.dumps(industry_series),
-        "line_research": json.dumps(research_series),
+        "line_ind_dom": json.dumps(ind_dom_series),
+        "line_ind_int": json.dumps(ind_int_series),
+        "line_res_dom": json.dumps(res_dom_series),
+        "line_res_int": json.dumps(res_int_series),
+        "line_hefei": json.dumps(hefei_series),
         "pie_data": json.dumps([
-            {"name": "政策动态", "value": dim_counts.get("policy", 0)},
-            {"name": "产业进展", "value": dim_counts.get("industry", 0)},
-            {"name": "科研成果", "value": dim_counts.get("research", 0)},
+            {"name": k, "value": v} for k, v in cat_counts.most_common()
         ], ensure_ascii=False),
         "bar_sources": json.dumps([s[0] for s in reversed(top_sources)], ensure_ascii=False),
         "bar_counts": json.dumps([s[1] for s in reversed(top_sources)]),
     }
 
 
-def generate_report(start_date: str, end_date: str) -> str:
-    """
-    生成 HTML 报告并保存到文件。
+def _render_html(start_date, end_date, articles, chart_data, generated_at, extra_context=None):
+    """渲染报告 HTML 的通用逻辑。"""
+    # 按维度+区域分组
+    policy_articles = [a for a in articles if a["dimension"] == "policy" and a.get("region") != "hefei"]
+    industry_domestic = [a for a in articles if a["dimension"] == "industry" and a.get("region") == "domestic"]
+    industry_international = [a for a in articles if a["dimension"] == "industry" and a.get("region") == "international"]
+    research_domestic = [a for a in articles if a["dimension"] == "research" and a.get("region") == "domestic"]
+    research_international = [a for a in articles if a["dimension"] == "research" and a.get("region") == "international"]
+    # 合肥相关：region=hefei 的所有文章
+    hefei_articles = [a for a in articles if a.get("region") == "hefei"]
+    # 合肥文章中按维度细分
+    hefei_policy = [a for a in hefei_articles if a["dimension"] == "policy"]
+    hefei_industry = [a for a in hefei_articles if a["dimension"] == "industry"]
+    hefei_research = [a for a in hefei_articles if a["dimension"] == "research"]
 
-    Args:
-        start_date: 开始日期 (YYYY-MM-DD)
-        end_date: 结束日期 (YYYY-MM-DD)
-
-    Returns:
-        报告文件名
-    """
-    _ensure_reports_dir()
-
-    articles = get_articles_by_date_range(start_date, end_date)
-
-    # 按维度分组
-    policy_articles = [a for a in articles if a["dimension"] == "policy"]
-    industry_articles = [a for a in articles if a["dimension"] == "industry"]
-    research_articles = [a for a in articles if a["dimension"] == "research"]
-
-    chart_data = _build_chart_data(articles, start_date, end_date)
-
-    # 收集涉及的信息源
     sources_set = set()
     for a in articles:
         if a.get("source_name"):
             sources_set.add(a["source_name"])
 
-    html = render_template(
-        "report.html",
-        start_date=start_date,
-        end_date=end_date,
-        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
-        total=len(articles),
-        policy_count=len(policy_articles),
-        industry_count=len(industry_articles),
-        research_count=len(research_articles),
-        policy_articles=policy_articles,
-        industry_articles=industry_articles,
-        research_articles=research_articles,
-        sources=sorted(sources_set),
+    ctx = {
+        "start_date": start_date,
+        "end_date": end_date,
+        "generated_at": generated_at,
+        "total": len(articles),
+        "policy_count": len(policy_articles),
+        "industry_domestic_count": len(industry_domestic),
+        "industry_international_count": len(industry_international),
+        "research_domestic_count": len(research_domestic),
+        "research_international_count": len(research_international),
+        "hefei_count": len(hefei_articles),
+        "policy_articles": policy_articles,
+        "industry_domestic_articles": industry_domestic,
+        "industry_international_articles": industry_international,
+        "research_domestic_articles": research_domestic,
+        "research_international_articles": research_international,
+        "hefei_articles": hefei_articles,
+        "hefei_policy": hefei_policy,
+        "hefei_industry": hefei_industry,
+        "hefei_research": hefei_research,
+        "sources": sorted(sources_set),
         **chart_data,
-    )
+    }
+    if extra_context:
+        ctx.update(extra_context)
+
+    return render_template("report.html", **ctx)
+
+
+def generate_report(start_date: str, end_date: str) -> str:
+    """生成 HTML 报告并保存到文件。"""
+    _ensure_reports_dir()
+
+    articles = get_articles_by_date_range(start_date, end_date)
+    chart_data = _build_chart_data(articles, start_date, end_date)
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    html = _render_html(start_date, end_date, articles, chart_data, generated_at)
 
     filename = f"{start_date}_{end_date}.html"
     filepath = os.path.join(REPORTS_DIR, filename)
-
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(html)
 
     return filename
 
 
-def generate_report_pdf(start_date: str, end_date: str) -> bytes:
-    """
-    生成 PDF 报告并返回字节流。
-
-    Args:
-        start_date: 开始日期 (YYYY-MM-DD)
-        end_date: 结束日期 (YYYY-MM-DD)
-
-    Returns:
-        PDF 文件字节流
-    """
+def generate_report_pdf(start_date: str, end_date: str):
+    """生成 PDF 报告，返回 (type, bytes)。"""
     _ensure_reports_dir()
 
     articles = get_articles_by_date_range(start_date, end_date)
-
-    policy_articles = [a for a in articles if a["dimension"] == "policy"]
-    industry_articles = [a for a in articles if a["dimension"] == "industry"]
-    research_articles = [a for a in articles if a["dimension"] == "research"]
-
     chart_data = _build_chart_data(articles, start_date, end_date)
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    sources_set = set()
-    for a in articles:
-        if a.get("source_name"):
-            sources_set.add(a["source_name"])
+    html = _render_html(start_date, end_date, articles, chart_data, generated_at)
 
-    html = render_template(
-        "report.html",
-        start_date=start_date,
-        end_date=end_date,
-        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
-        total=len(articles),
-        policy_count=len(policy_articles),
-        industry_count=len(industry_articles),
-        research_count=len(research_articles),
-        policy_articles=policy_articles,
-        industry_articles=industry_articles,
-        research_articles=research_articles,
-        sources=sorted(sources_set),
-        **chart_data,
-    )
-
-    # 同时保存 HTML 副本
+    # 同时保存 HTML
     filename = f"{start_date}_{end_date}.html"
     filepath = os.path.join(REPORTS_DIR, filename)
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(html)
 
-    # 使用 WeasyPrint 生成 PDF
+    # 尝试 WeasyPrint PDF
     try:
         from weasyprint import HTML
         pdf_bytes = HTML(string=html).write_pdf()
-
-        # 保存 PDF 副本
         pdf_filename = f"{start_date}_{end_date}.pdf"
         pdf_filepath = os.path.join(REPORTS_DIR, pdf_filename)
         with open(pdf_filepath, "wb") as f:
             f.write(pdf_bytes)
-
         return ("pdf", pdf_bytes)
     except Exception as e:
-        # Windows 缺少 GTK 库时回退到 HTML
         import logging
         logging.getLogger("reporter").warning(f"WeasyPrint failed ({e}), falling back to HTML")
         return ("html", html.encode("utf-8"))
@@ -192,7 +208,7 @@ def list_reports() -> list[dict]:
     _ensure_reports_dir()
     reports = []
     for f in os.listdir(REPORTS_DIR):
-        if f.endswith(".html"):
+        if f.endswith(".html") or f.endswith(".pdf"):
             fpath = os.path.join(REPORTS_DIR, f)
             mtime = datetime.fromtimestamp(os.path.getmtime(fpath))
             reports.append({

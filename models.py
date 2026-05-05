@@ -23,6 +23,13 @@ def get_connection() -> sqlite3.Connection:
 def init_db():
     """创建所有表并初始化默认配置。"""
     conn = get_connection()
+    # 先尝试为旧数据库添加 region 列（兼容升级）
+    try:
+        conn.execute("ALTER TABLE articles ADD COLUMN region TEXT DEFAULT 'domestic'")
+    except sqlite3.OperationalError:
+        pass  # 列已存在或表尚不存在
+    conn.commit()
+
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,6 +39,7 @@ def init_db():
             source_name TEXT NOT NULL,
             source_url TEXT DEFAULT '',
             dimension TEXT NOT NULL CHECK(dimension IN ('policy','industry','research')),
+            region TEXT DEFAULT 'domestic' CHECK(region IN ('domestic','international','hefei')),
             publish_time TEXT DEFAULT '',
             crawl_time TEXT NOT NULL,
             is_valid INTEGER DEFAULT 1
@@ -56,6 +64,11 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_articles_publish_time ON articles(publish_time);
         CREATE INDEX IF NOT EXISTS idx_articles_crawl_time ON articles(crawl_time);
     """)
+    # 创建 region 索引（可能失败如果列是通过 ALTER 添加的，重试）
+    try:
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_articles_region ON articles(region)")
+    except sqlite3.OperationalError:
+        pass
     # 初始化默认配置
     defaults = {
         "crawl_frequency": "daily",
@@ -80,8 +93,8 @@ def insert_article(article: dict) -> bool:
     try:
         cur = conn.execute(
             """INSERT OR IGNORE INTO articles
-               (title, summary, url, source_name, source_url, dimension, publish_time, crawl_time)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               (title, summary, url, source_name, source_url, dimension, region, publish_time, crawl_time)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 article.get("title", ""),
                 article.get("summary", ""),
@@ -89,6 +102,7 @@ def insert_article(article: dict) -> bool:
                 article.get("source_name", ""),
                 article.get("source_url", ""),
                 article.get("dimension", ""),
+                article.get("region", "domestic"),
                 article.get("publish_time", ""),
                 now,
             ),
@@ -106,7 +120,7 @@ def get_articles_by_date_range(start_date: str, end_date: str) -> list[dict]:
     rows = conn.execute(
         """SELECT * FROM articles
            WHERE publish_time >= ? AND publish_time <= ?
-           ORDER BY dimension, publish_time DESC""",
+           ORDER BY dimension, region, publish_time DESC""",
         (start_date, end_date),
     ).fetchall()
     conn.close()
@@ -114,20 +128,37 @@ def get_articles_by_date_range(start_date: str, end_date: str) -> list[dict]:
 
 
 def get_article_counts() -> dict:
-    """返回各维度文章计数。"""
+    """返回各维度+区域文章计数（7 个维度）。"""
     conn = get_connection()
     total = conn.execute("SELECT COUNT(*) as cnt FROM articles").fetchone()["cnt"]
     policy = conn.execute(
         "SELECT COUNT(*) as cnt FROM articles WHERE dimension='policy'"
     ).fetchone()["cnt"]
-    industry = conn.execute(
-        "SELECT COUNT(*) as cnt FROM articles WHERE dimension='industry'"
+    industry_domestic = conn.execute(
+        "SELECT COUNT(*) as cnt FROM articles WHERE dimension='industry' AND region='domestic'"
     ).fetchone()["cnt"]
-    research = conn.execute(
-        "SELECT COUNT(*) as cnt FROM articles WHERE dimension='research'"
+    industry_international = conn.execute(
+        "SELECT COUNT(*) as cnt FROM articles WHERE dimension='industry' AND region='international'"
+    ).fetchone()["cnt"]
+    research_domestic = conn.execute(
+        "SELECT COUNT(*) as cnt FROM articles WHERE dimension='research' AND region='domestic'"
+    ).fetchone()["cnt"]
+    research_international = conn.execute(
+        "SELECT COUNT(*) as cnt FROM articles WHERE dimension='research' AND region='international'"
+    ).fetchone()["cnt"]
+    hefei = conn.execute(
+        "SELECT COUNT(*) as cnt FROM articles WHERE region='hefei'"
     ).fetchone()["cnt"]
     conn.close()
-    return {"total": total, "policy": policy, "industry": industry, "research": research}
+    return {
+        "total": total,
+        "policy": policy,
+        "industry_domestic": industry_domestic,
+        "industry_international": industry_international,
+        "research_domestic": research_domestic,
+        "research_international": research_international,
+        "hefei": hefei,
+    }
 
 
 # --- Config CRUD ---

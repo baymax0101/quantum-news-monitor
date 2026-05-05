@@ -1,6 +1,7 @@
 """爬虫引擎：加载信息源、调度抓取、解析入库。"""
 
 import json
+import re
 import time
 import logging
 import os
@@ -14,6 +15,21 @@ from crawlers.parsers.rss_parsers import parse_rss
 logger = logging.getLogger("crawler.engine")
 
 SOURCES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sources.json")
+
+# 合肥相关关键词（用于自动检测非合肥源中的合肥内容）
+HEFEI_KEYWORDS = ["合肥", "Hefei", "hefei", "中科大", "国盾", "本源量子", "国仪量子"]
+
+
+def _detect_hefei(title: str, url: str, source_region: str) -> str:
+    """自动检测文章是否涉及合肥。如果来源已是 hefei 或内容涉及合肥关键词，返回 hefei。"""
+    if source_region == "hefei":
+        return "hefei"
+    # 检查标题和 URL 中是否包含合肥关键词
+    combined = f"{title} {url}"
+    for kw in HEFEI_KEYWORDS:
+        if kw.lower() in combined.lower():
+            return "hefei"
+    return source_region
 
 
 def load_sources() -> list[dict]:
@@ -37,6 +53,7 @@ def crawl_source(source: dict) -> list[dict]:
     name = source["name"]
     url = source.get("rss_url", source["url"])
     dimension = source["dimension"]
+    source_region = source.get("region", "domestic")
     keywords = source.get("keywords")
     encoding = source.get("encoding")
     parser_type = source.get("parser", "html_generic")
@@ -44,33 +61,39 @@ def crawl_source(source: dict) -> list[dict]:
     if parser_type == "rss":
         # RSS 源：直接传入 url（feedparser 可处理 URL 或 XML 字符串）
         try:
-            results = parse_rss(url, name, source["url"], dimension)
+            raw_results = parse_rss(url, name, source["url"], dimension)
         except Exception as e:
             logger.error(f"RSS parse error for {name}: {e}")
             return []
-    else:
-        # HTML 源：fetch 后 extract_links
-        html = fetch(url, encoding=encoding)
-        if html is None:
-            logger.warning(f"Failed to fetch HTML for {name}")
-            return []
+        for r in raw_results:
+            r["region"] = _detect_hefei(r.get("title", ""), r.get("url", ""), source_region)
+        return raw_results
 
-        try:
-            links = extract_links(html, url, keywords=keywords)
-        except Exception as e:
-            logger.error(f"Link extraction error for {name}: {e}")
-            return []
+    # HTML 源：fetch 后 extract_links
+    html = fetch(url, encoding=encoding)
+    if html is None:
+        logger.warning(f"Failed to fetch HTML for {name}")
+        return []
 
-        for link in links:
-            results.append({
-                "title": link["title"],
-                "url": link["url"],
-                "summary": link.get("summary", ""),
-                "source_name": name,
-                "source_url": source["url"],
-                "dimension": dimension,
-                "publish_time": "",  # 通用解析器无法可靠提取时间
-            })
+    try:
+        links = extract_links(html, url, keywords=keywords)
+    except Exception as e:
+        logger.error(f"Link extraction error for {name}: {e}")
+        return []
+
+    for link in links:
+        title = link["title"]
+        link_url = link["url"]
+        results.append({
+            "title": title,
+            "url": link_url,
+            "summary": link.get("summary", ""),
+            "source_name": name,
+            "source_url": source["url"],
+            "dimension": dimension,
+            "region": _detect_hefei(title, link_url, source_region),
+            "publish_time": "",
+        })
 
     return results
 
