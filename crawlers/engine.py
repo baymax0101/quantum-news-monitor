@@ -8,6 +8,18 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
+_PROGRESS_LOG = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs", "crawl_progress.log")
+
+
+def _plog(msg):
+    """同时输出到控制台和进度日志文件。"""
+    print(msg, flush=True)
+    try:
+        with open(_PROGRESS_LOG, "a", encoding="utf-8") as _f:
+            _f.write(msg + "\n")
+    except Exception:
+        pass
+
 from crawlers.fetcher import fetch
 from crawlers.parsers.base import extract_links
 from crawlers.parsers.rss_parsers import parse_rss
@@ -58,10 +70,14 @@ def crawl_source(source: dict) -> list[dict]:
     encoding = source.get("encoding")
     parser_type = source.get("parser", "html_generic")
 
-    if parser_type == "rss":
-        # RSS 源：直接传入 url（feedparser 可处理 URL 或 XML 字符串）
+    if parser_type in ("rss", "rsshub"):
+        # RSS / RSSHub 源：先 fetch（有超时控制），再 parse（避免 feedparser 内部无超时卡死）
         try:
-            raw_results = parse_rss(url, name, source["url"], dimension)
+            rss_content = fetch(url, timeout=30, max_retries=1, delay=1.0)
+            if rss_content is None:
+                logger.warning(f"Failed to fetch RSS for {name}")
+                return []
+            raw_results = parse_rss(rss_content, name, source["url"], dimension)
         except Exception as e:
             logger.error(f"RSS parse error for {name}: {e}")
             return []
@@ -113,6 +129,7 @@ def crawl_all(progress_callback=None) -> dict:
     sources = load_sources()
     total = len(sources)
     logger.info(f"Starting crawl: {total} sources")
+    _plog(f"[CRAWL] Total {total} sources, starting...")
 
     log_id = start_crawl_log(total)
     success_count = 0
@@ -133,13 +150,16 @@ def crawl_all(progress_callback=None) -> dict:
                         inserted += 1
                 new_articles += inserted
                 logger.info(f"  {name}: {len(articles)} found, {inserted} new")
+                _plog(f"  [{i+1}/{total}] {name}: {len(articles)} found, {inserted} new")
             else:
                 logger.info(f"  {name}: 0 articles")
+                _plog(f"  [{i+1}/{total}] {name}: 0 articles")
 
             success_count += 1
 
         except Exception as e:
             logger.error(f"  {name}: ERROR - {e}")
+            _plog(f"  [{i+1}/{total}] {name}: ERROR - {e}")
 
         # 间隔避免被封
         if i < total - 1:
@@ -153,6 +173,7 @@ def crawl_all(progress_callback=None) -> dict:
     finish_crawl_log(log_id, success_count, new_articles, status)
 
     logger.info(f"Crawl complete: {success_count}/{total} sources OK, {new_articles} new articles")
+    _plog(f"\n[CRAWL] Done: {success_count}/{total} sources OK, {new_articles} new\n")
 
     return {
         "success": success_count,

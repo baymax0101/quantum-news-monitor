@@ -115,13 +115,18 @@ def insert_article(article: dict) -> bool:
 
 
 def get_articles_by_date_range(start_date: str, end_date: str) -> list[dict]:
-    """按发布时间范围查询文章。"""
+    """按发布时间范围查询文章（publish_time 为空时用 crawl_time 回退）。"""
     conn = get_connection()
+    # crawl_time 格式为 2026-05-10T04:15:27，需取前10位与日期比较
     rows = conn.execute(
         """SELECT * FROM articles
-           WHERE publish_time >= ? AND publish_time <= ?
+           WHERE (
+               (publish_time != '' AND publish_time >= ? AND publish_time <= ?)
+               OR
+               (publish_time = '' AND substr(crawl_time, 1, 10) >= ? AND substr(crawl_time, 1, 10) <= ?)
+           )
            ORDER BY dimension, region, publish_time DESC""",
-        (start_date, end_date),
+        (start_date, end_date, start_date, end_date),
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]

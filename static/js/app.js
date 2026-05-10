@@ -18,6 +18,14 @@ async function triggerCrawl() {
     try {
         const resp = await fetch('/api/crawl/trigger', { method: 'POST' });
         const data = await resp.json();
+
+        if (!resp.ok) {
+            showToast(data.message || data.error || '启动爬取失败 (HTTP ' + resp.status + ')', 'error');
+            btn.disabled = false;
+            btn.textContent = '立即爬取';
+            return;
+        }
+
         showToast(data.message || '爬取任务已启动', 'success');
 
         // 轮询状态
@@ -42,6 +50,13 @@ async function pollCrawlStatus() {
         attempts++;
         try {
             const resp = await fetch('/api/crawl/status');
+            if (!resp.ok) {
+                clearInterval(pollTimer);
+                btn.disabled = false;
+                btn.textContent = '立即爬取';
+                showToast('查询爬取状态失败 (HTTP ' + resp.status + ')', 'error');
+                return;
+            }
             const data = await resp.json();
             const log = data.latest_log;
 
@@ -49,7 +64,8 @@ async function pollCrawlStatus() {
                 clearInterval(pollTimer);
                 btn.disabled = false;
                 btn.textContent = '立即爬取';
-                showToast(`爬取完成：新增 ${log.new_articles} 条`, 'success');
+                const newCount = log.new_articles != null ? log.new_articles : 0;
+                showToast(`爬取完成：新增 ${newCount} 条`, 'success');
                 // 刷新页面更新数据
                 setTimeout(() => location.reload(), 1500);
             } else if (attempts >= maxAttempts) {
@@ -110,6 +126,31 @@ async function listReports() {
 
     // 打开最新报告
     window.open('/reports/' + data.reports[0].filename, '_blank');
+}
+
+// 切换信息源启用/禁用
+async function toggleSource(name, checkbox) {
+    try {
+        const resp = await fetch('/api/sources/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name })
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+            showToast(data.error || '操作失败', 'error');
+            checkbox.checked = !checkbox.checked; // 回退
+            return;
+        }
+        const statusText = data.enabled ? '已启用' : '已禁用';
+        showToast(`${name} ${statusText}`, 'success');
+        // 更新行的 data-enabled 属性以支持筛选
+        const row = checkbox.closest('tr');
+        if (row) row.dataset.enabled = String(data.enabled);
+    } catch (e) {
+        showToast('操作失败: ' + e.message, 'error');
+        checkbox.checked = !checkbox.checked; // 回退
+    }
 }
 
 // 设置默认日期（最近 7 天）
