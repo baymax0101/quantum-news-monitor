@@ -91,7 +91,7 @@
                 <div class="article-card">
                     <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
-                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time[:10] if a.publish_time else (a.crawl_time[:10] if a.crawl_time else '未知时间') }}</div>
                 </div>
                 {% endfor %}
             {% else %}<div class="no-data">暂无数据</div>{% endif %}
@@ -105,7 +105,7 @@
                 <div class="article-card">
                     <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
-                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time[:10] if a.publish_time else (a.crawl_time[:10] if a.crawl_time else '未知时间') }}</div>
                 </div>
                 {% endfor %}
             {% else %}<div class="no-data">暂无数据</div>{% endif %}
@@ -119,7 +119,7 @@
                 <div class="article-card">
                     <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
-                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time[:10] if a.publish_time else (a.crawl_time[:10] if a.crawl_time else '未知时间') }}</div>
                 </div>
                 {% endfor %}
             {% else %}<div class="no-data">暂无数据</div>{% endif %}
@@ -133,7 +133,7 @@
                 <div class="article-card">
                     <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
-                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time[:10] if a.publish_time else (a.crawl_time[:10] if a.crawl_time else '未知时间') }}</div>
                 </div>
                 {% endfor %}
             {% else %}<div class="no-data">暂无数据</div>{% endif %}
@@ -147,7 +147,7 @@
                 <div class="article-card">
                     <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
                     {% if a.summary %}<div class="article-summary">{{ a.summary[:200] }}</div>{% endif %}
-                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                    <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time[:10] if a.publish_time else (a.crawl_time[:10] if a.crawl_time else '未知时间') }}</div>
                 </div>
                 {% endfor %}
             {% else %}<div class="no-data">暂无数据</div>{% endif %}
@@ -163,7 +163,7 @@
                     {% for a in hefei_policy %}
                     <div class="article-card">
                         <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
-                        <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                        <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time[:10] if a.publish_time else (a.crawl_time[:10] if a.crawl_time else '未知时间') }}</div>
                     </div>
                     {% endfor %}
                 </div>
@@ -174,7 +174,7 @@
                     {% for a in hefei_industry %}
                     <div class="article-card">
                         <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
-                        <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                        <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time[:10] if a.publish_time else (a.crawl_time[:10] if a.crawl_time else '未知时间') }}</div>
                     </div>
                     {% endfor %}
                 </div>
@@ -185,7 +185,7 @@
                     {% for a in hefei_research %}
                     <div class="article-card">
                         <div class="article-title"><a href="{{ a.url }}" target="_blank" rel="noopener noreferrer">{{ a.title }}</a></div>
-                        <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time if a.publish_time else '未知时间' }}</div>
+                        <div class="article-meta">来源：{{ a.source_name }} &nbsp;|&nbsp; {{ a.publish_time[:10] if a.publish_time else (a.crawl_time[:10] if a.crawl_time else '未知时间') }}</div>
                     </div>
                     {% endfor %}
                 </div>

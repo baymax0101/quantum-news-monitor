@@ -30,7 +30,8 @@ def _build_chart_data(articles: list[dict], start_date: str, end_date: str) -> d
     })
 
     for a in articles:
-        pt = a.get("publish_time", "")[:10]
+        pt = a.get("publish_time", "") or a.get("crawl_time", "")
+        pt = pt[:10]
         if not pt:
             continue
         dim = a.get("dimension", "")

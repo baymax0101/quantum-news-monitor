@@ -1,6 +1,7 @@
 """Flask 应用入口：路由、API、调度器启动。"""
 
 import os
+import json
 import logging
 import threading
 from datetime import datetime
@@ -68,16 +69,86 @@ def create_app() -> Flask:
         reports_dir = os.path.join(os.path.dirname(__file__), "reports")
         return send_from_directory(reports_dir, filename)
 
+    # --- 爬取线程辅助函数 ---
+
+    def _start_crawl_thread():
+        """启动后台爬取线程。"""
+        def _run():
+            import os as _os
+            _progress_log = _os.path.join(_os.path.dirname(__file__), "logs", "crawl_progress.log")
+            def _log(msg):
+                print(msg, flush=True)
+                try:
+                    with open(_progress_log, "a", encoding="utf-8") as _f:
+                        _f.write(msg + "\n")
+                except Exception:
+                    pass
+            try:
+                _log("\n" + "=" * 50)
+                _log("  [CRAWL] Manual crawl started")
+                _log("=" * 50)
+                result = crawl_all()
+                _log("-" * 50)
+                _log(f"  [CRAWL] Done: {result['success']}/{result['total_sources']} sources OK")
+                _log(f"  [CRAWL] New articles: {result['new_articles']}")
+                _log("=" * 50 + "\n")
+            except Exception as e:
+                _log(f"\n{'='*50}")
+                _log(f"  [CRAWL ERROR] Exception during crawl:")
+                _log(f"  {e}")
+                _log(f"{'='*50}")
+                import traceback
+                traceback.print_exc()
+        thread = threading.Thread(target=_run, daemon=True)
+        thread.start()
+
     # --- API 路由 ---
 
     @app.route("/api/crawl/trigger", methods=["POST"])
     def api_crawl_trigger():
         """手动触发爬取（在后台线程执行）。"""
-        def _run():
-            crawl_all()
-        thread = threading.Thread(target=_run, daemon=True)
-        thread.start()
+        # DIAGNOSTIC: this runs in the main thread, proves the route was hit
+        print("\n>>> [DIAG] Crawl trigger endpoint HIT <<<\n", flush=True)
+        open(os.path.join(log_dir, "_trigger_received.txt"), "w").close()
+        _start_crawl_thread()
         return jsonify({"status": "started", "message": "爬取任务已启动"})
+
+    @app.route("/api/crawl/trigger-get")
+    def api_crawl_trigger_get():
+        """GET 方式触发爬取（绕过 JS，直接在浏览器地址栏测试）。"""
+        print("\n>>> [DIAG] Crawl trigger (GET) endpoint HIT <<<\n", flush=True)
+        open(os.path.join(log_dir, "_trigger_received.txt"), "w").close()
+        _start_crawl_thread()
+        return "<h2>爬取任务已启动！</h2><p>查看终端或 logs/crawl_progress.log</p>"
+
+    @app.route("/api/sources/toggle", methods=["POST"])
+    def api_toggle_source():
+        """切换信息源启用/禁用状态。"""
+        data = request.get_json()
+        source_name = data.get("name", "")
+        if not source_name:
+            return jsonify({"error": "缺少信息源名称"}), 400
+
+        sources_path = os.path.join(os.path.dirname(__file__), "sources.json")
+        with open(sources_path, "r", encoding="utf-8") as f:
+            sources = json.load(f)
+
+        found = False
+        new_state = False
+        for s in sources:
+            if s["name"] == source_name:
+                s["enabled"] = not s.get("enabled", True)
+                new_state = s["enabled"]
+                found = True
+                break
+
+        if not found:
+            return jsonify({"error": f"未找到信息源: {source_name}"}), 404
+
+        with open(sources_path, "w", encoding="utf-8") as f:
+            json.dump(sources, f, ensure_ascii=False, indent=2)
+
+        return jsonify({"status": "ok", "name": source_name, "enabled": new_state})
 
     @app.route("/api/crawl/status")
     def api_crawl_status():
@@ -169,8 +240,14 @@ if __name__ == "__main__":
     import os
     app = create_app()
     debug = os.environ.get("FLASK_ENV") == "development"
+    # DIAGNOSTIC: write startup marker
+    log_dir = os.path.join(os.path.dirname(__file__), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    with open(os.path.join(log_dir, "_app_started.txt"), "w") as f:
+        f.write("APP STARTED\n")
     print("\n" + "=" * 50)
     print("  量子通信信息监测平台")
     print("  访问地址: http://127.0.0.1:5000")
+    print("  [DIAG] startup marker written to logs/_app_started.txt")
     print("=" * 50 + "\n")
     app.run(host="127.0.0.1", port=5000, debug=debug)
